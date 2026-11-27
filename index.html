@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laboratório de Engenharia de Prompt</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    /* Custom subtle scrollbars for question pills and modals */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(148, 163, 184, 0.12);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.55);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-900">
+  <!-- Top Navigation & Progress Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- Brand Identity -->
+        <div class="flex items-start sm:items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+            LP
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
+                Laboratório de Engenharia de Prompt
+              </h1>
+              <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                20 Missões Práticas
+              </span>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-500">
+              Treine clareza, contexto, restrições e formato de saída para obter respostas melhores da IA.
+            </p>
+          </div>
+        </div>
+
+        <!-- Global Progress & Summary Trigger -->
+        <div class="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 flex items-center gap-4">
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Concluídas</div>
+              <div id="header-completed-count" class="text-sm font-bold text-slate-800">0 / 20</div>
+            </div>
+            <div class="h-7 w-px bg-slate-200"></div>
+            <div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Média Geral</div>
+              <div id="header-average-score" class="text-sm font-bold text-indigo-600">— / 10</div>
+            </div>
+          </div>
+
+          <button
+            id="btn-open-summary"
+            type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white transition shadow-sm"
+          >
+            <span>Resumo de Notas</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="mt-4">
+        <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+          <span id="progress-label">Progresso do laboratório: 0% concluído</span>
+          <span id="progress-points-label">0.0 pts acumulados</span>
+        </div>
+        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/70">
+          <div
+            id="global-progress-bar"
+            class="h-full bg-gradient-to-r from-indigo-600 via-violet-600 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+            style="width: 0%;"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Question Selector Strip (1 to 20) -->
+      <nav aria-label="Seletor de questões" class="mt-3.5 flex items-center gap-1.5 overflow-x-auto pb-1">
+        <div id="question-selector" class="flex items-center gap-1.5"></div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <!-- Toast / Inline Message Banner (replaces alert/confirm) -->
+    <div id="feedback-banner" class="hidden mb-5 rounded-2xl border px-4 py-3 text-sm font-medium flex items-center justify-between gap-3">
+      <span id="feedback-banner-text"></span>
+      <button id="feedback-banner-close" type="button" class="text-xs font-bold underline opacity-75 hover:opacity-100">
+        Fechar
+      </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left / Primary Column: Question & Prompt Composer -->
+      <section class="lg:col-span-7 space-y-6">
+        <!-- Question Card -->
+        <article class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-7">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div class="flex flex-wrap items-center gap-2">
+              <span id="q-number-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white">
+                Questão 1 de 20
+              </span>
+              <span id="q-category-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+                Geração de Imagens
+              </span>
+              <span id="q-difficulty-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                Nível Inicial
+              </span>
+            </div>
+            <span id="q-saved-score-pill" class="hidden text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Melhor nota: 0.0 / 10
+            </span>
+          </div>
+
+          <h2 id="q-title" class="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug mb-3">
+            Carregando questão...
+          </h2>
+
+          <p id="q-scenario" class="text-slate-600 text-sm sm:text-base leading-relaxed mb-4">
+            Carregando cenário...
+          </p>
+
+          <!-- Objective Box -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200/90 p-4 mb-4">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-1">
+              Objetivo da Missão
+            </div>
+            <p id="q-objective" class="text-sm text-slate-700 leading-relaxed"></p>
+          </div>
+
+          <!-- Optional Quick Hint Toggle -->
+          <div class="border-t border-slate-100 pt-3">
+            <button
+              id="btn-toggle-hint"
+              type="button"
+              class="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition"
+            >
+              <span id="hint-toggle-icon">+</span>
+              <span id="hint-toggle-label">Mostrar dica rápida de engenharia de prompt</span>
+            </button>
+            <div id="q-hint-box" class="hidden mt-3 rounded-2xl bg-indigo-50/70 border border-indigo-200 p-3.5 text-xs sm:text-sm text-indigo-950 leading-relaxed"></div>
+          </div>
+        </article>
+
+        <!-- Student Prompt Composer Card -->
+        <article class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-7">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <label for="prompt-textarea" class="text-base sm:text-lg font-bold text-slate-900">
+              Escreva o seu prompt para a IA
+            </label>
+            <div class="flex items-center gap-3 text-xs font-medium text-slate-500">
+              <span id="word-count">0 palavras</span>
+              <span>•</span>
+              <span id="char-count">0 caracteres</span>
+            </div>
+          </div>
+
+          <textarea
+            id="prompt-textarea"
+            rows="7"
+            placeholder="Digite aqui exatamente o prompt que você enviaria para a inteligência artificial..."
+            class="w-full rounded-2xl border border-slate-300 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 transition p-4 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 leading-relaxed resize-y"
+          ></textarea>
+
+          <!-- Action Buttons -->
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button
+                id="btn-evaluate"
+                type="button"
+                class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white shadow-md shadow-indigo-600/20 transition"
+              >
+                <span>Enviar / Avaliar Prompt</span>
+              </button>
+
+              <button
+                id="btn-clear"
+                type="button"
+                class="inline-flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-semibold bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition"
+              >
+                Limpar
+              </button>
+            </div>
+
+            <button
+              id="btn-example"
+              type="button"
+              class="inline-flex items-center justify-center px-4 py-3 rounded-2xl text-sm font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 transition"
+            >
+              Ver Exemplo de Prompt Forte
+            </button>
+          </div>
+
+          <!-- Collapsible Strong Example Box -->
+          <div id="example-panel" class="hidden mt-5 rounded-2xl bg-violet-50/70 border border-violet-200 p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-violet-800">
+                Exemplo de Referência (Nota Alta)
+              </span>
+              <button
+                id="btn-use-example"
+                type="button"
+                class="text-xs font-bold text-violet-700 hover:text-violet-950 underline"
+              >
+                Copiar para caixa de texto
+              </button>
+            </div>
+            <p id="example-text" class="text-sm text-slate-800 leading-relaxed whitespace-pre-line"></p>
+            <p id="example-why" class="mt-2.5 text-xs text-violet-900/80 italic"></p>
+          </div>
+        </article>
+
+        <!-- Question Navigation Controls -->
+        <div class="flex items-center justify-between gap-3">
+          <button
+            id="btn-prev"
+            type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-700 border border-slate-200 shadow-sm transition"
+          >
+            <span>← Anterior</span>
+          </button>
+
+          <button
+            id="btn-skip"
+            type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+          >
+            <span>Pular / Próxima →</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Column: Instant Evaluation & Tailored Improvement Tips -->
+      <aside class="lg:col-span-5 space-y-6">
+        <div id="evaluation-card" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 sm:p-7">
+          <!-- Empty / Pre-Evaluation State -->
+          <div id="eval-empty-state" class="text-center py-8 px-2">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4 text-xl font-extrabold border border-indigo-100">
+              0-10
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-2">
+              Avaliação Imediata do Seu Prompt
+            </h3>
+            <p class="text-sm text-slate-500 leading-relaxed max-w-md mx-auto">
+              Escreva seu prompt ao lado e clique em <strong class="text-slate-700">Enviar / Avaliar Prompt</strong> para receber sua nota de 0 a 10, análise dos critérios e dicas práticas de melhoria.
+            </p>
+          </div>
+
+          <!-- Active Evaluation Results -->
+          <div id="eval-result-state" class="hidden space-y-5">
+            <!-- Score Header -->
+            <div class="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Pontuação Obtida
+                </div>
+                <div class="flex items-baseline gap-2">
+                  <span id="eval-score-value" class="text-4xl font-extrabold tracking-tight text-indigo-600">0.0</span>
+                  <span class="text-base font-bold text-slate-400">/ 10</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span id="eval-status-badge" class="inline-block px-3.5 py-1.5 rounded-full text-xs font-bold border">
+                  Em desenvolvimento
+                </span>
+                <p id="eval-headline" class="text-xs text-slate-500 mt-1.5 max-w-[190px]"></p>
+              </div>
+            </div>
+
+            <!-- Criteria Breakdown -->
+            <div>
+              <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-3">
+                Critérios Avaliados Nesta Missão
+              </h4>
+              <div id="eval-criteria-list" class="space-y-2.5"></div>
+            </div>
+
+            <!-- What Worked Well -->
+            <div id="eval-strengths-box" class="rounded-2xl bg-emerald-50/80 border border-emerald-200 p-4">
+              <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-800 mb-2">
+                O Que Funcionou Bem
+              </h4>
+              <ul id="eval-strengths-list" class="space-y-1.5 text-xs sm:text-sm text-emerald-950 list-disc pl-4"></ul>
+            </div>
+
+            <!-- Actionable Improvement Tips -->
+            <div class="rounded-2xl bg-amber-50/80 border border-amber-200 p-4">
+              <h4 class="text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-2">
+                Dicas Práticas Para Melhorar
+              </h4>
+              <ul id="eval-tips-list" class="space-y-2 text-xs sm:text-sm text-amber-950 list-disc pl-4"></ul>
+            </div>
+
+            <!-- Suggested Revised Prompt -->
+            <div class="rounded-2xl bg-slate-900 text-slate-100 p-4">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                  Versão Aprimorada Sugerida
+                </span>
+                <button
+                  id="btn-apply-improved"
+                  type="button"
+                  class="text-xs font-semibold text-emerald-300 hover:text-emerald-200 underline"
+                >
+                  Testar esta versão
+                </button>
+              </div>
+              <p id="eval-revised-prompt" class="text-xs sm:text-sm text-slate-200 leading-relaxed whitespace-pre-line"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Cheat Sheet Card -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+          <h3 class="text-sm font-extrabold text-slate-900 mb-2">
+            Fórmula Rápida de um Bom Prompt
+          </h3>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            <strong>Papel / Ação</strong> + <strong>Contexto ou Cena</strong> + <strong>Detalhes / Público / Estilo</strong> + <strong>Formato e Restrições</strong>. Quanto mais claro e específico o pedido, menor a chance de a IA adivinhar errado.
+          </p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Summary Modal (All 20 Questions Overview) -->
+  <div
+    id="summary-modal"
+    class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="summary-modal-title"
+  >
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[88vh] flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
+        <div>
+          <h2 id="summary-modal-title" class="text-lg sm:text-xl font-extrabold text-slate-900">
+            Resumo Geral de Notas (20 Questões)
+          </h2>
+          <p id="summary-subtitle" class="text-xs sm:text-sm text-slate-500">
+            Clique em qualquer questão para abrir e continuar praticando.
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="btn-reset-all"
+            type="button"
+            class="px-3 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
+          >
+            Zerar Progresso
+          </button>
+          <button
+            id="btn-close-summary"
+            type="button"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary Stats Strip -->
+      <div class="grid grid-cols-3 gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200 text-center">
+        <div class="bg-white rounded-2xl border border-slate-200 p-3">
+          <div class="text-[11px] font-bold uppercase text-slate-400">Questões Respondidas</div>
+          <div id="modal-stat-completed" class="text-lg font-extrabold text-slate-900 mt-0.5">0 / 20</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-3">
+          <div class="text-[11px] font-bold uppercase text-slate-400">Média das Notas</div>
+          <div id="modal-stat-average" class="text-lg font-extrabold text-indigo-600 mt-0.5">— / 10</div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-3">
+          <div class="text-[11px] font-bold uppercase text-slate-400">Pontuação Total</div>
+          <div id="modal-stat-total" class="text-lg font-extrabold text-emerald-600 mt-0.5">0.0 / 200</div>
+        </div>
+      </div>
+
+      <!-- List of All 20 Questions -->
+      <div id="summary-list" class="p-6 overflow-y-auto space-y-2.5 flex-1"></div>
+    </div>
+  </div>
+
+  <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <span>Laboratório de Engenharia de Prompt — Ambiente educacional interativo em PT-BR.</span>
+      <span>Seu progresso fica salvo automaticamente neste navegador.</span>
+    </div>
+  </footer>
+
+  <script>
+    /**
+     * Laboratório de Engenharia de Prompt
+     * Arquitetura:
+     * 1. QUESTIONS: Banco de 20 questões cobrindo geração de imagens, textos, resumos,
+     *    programação, explicações didáticas, adaptação de tom, análise de dados, roteiros,
+     *    e-mails profissionais e resolução de problemas.
+     * 2. CRITERIA_WEIGHTS & evaluatePrompt(): Motor de avaliação local em PT-BR que analisa
+     *    clareza/ação, contexto/cenário, especificidade/detalhes (incluindo elementos visuais
+     *    ou técnicos conforme o tipo da missão), formato de saída/restrições e ausência de
+     *    vagueza excessiva, calculando nota de 0.0 a 10.0 e gerando feedback personalizado.
+     * 3. State & Persistence: Gerencia questão atual, respostas, avaliações e notas em memória
+     *    e localStorage com fallback seguro.
+     */
+
+    const STORAGE_KEY = 'lab_engenharia_prompt_v1';
+
+    const QUESTIONS = [
+      {
+        id: 1,
+        category: 'Geração de Imagens',
+        difficulty: 'Nível Inicial',
+        kind: 'image',
+        title: 'Cachorro voando ao lado de um unicórnio',
+        scenario: 'Você quer pedir para uma IA geradora de imagens criar uma ilustração de um cachorro voando ao lado de um unicórnio em um cenário mágico.',
+        objective: 'Escreva um prompt visual rico e claro que defina os personagens, a ação de voar juntos, o ambiente, o estilo artístico, a iluminação e a composição.',
+        hint: 'Em prompts de imagem, não basta dizer "crie uma imagem de...". Descreva a expressão dos animais, o cenário ao redor, o estilo (ex.: aquarela, ilustração digital 3D, pintura fantástica), a luz e o enquadramento.',
+        requiredKeywords: ['cachorro', 'unicórnio', 'voando', 'voar', 'céu', 'nuvens', 'asas', 'estilo', 'ilustração', 'luz', 'iluminação', 'cenário'],
+        examplePrompt: 'Ilustração digital fantasiosa em estilo de livro infantil, plano amplo: um cachorro golden retriever alegre, com orelhas ao vento e expressão curiosa, voando lado a lado com um unicórnio branco de crina arco-íris brilhante acima de um vale verdejante com rios sinuosos e nuvens fofas. Iluminação dourada do pôr do sol, raios de luz atravessando as nuvens, cores vibrantes e harmônicas, alta definição, sem texto na imagem.',
+        exampleWhy: 'Combina os dois personagens em ação conjunta, define cenário e iluminação, especifica estilo artístico e enquadramento, e evita comandos vagos.'
+      },
+      {
+        id: 2,
+        category: 'Explicação Didática',
+        difficulty: 'Nível Inicial',
+        kind: 'explanation',
+        title: 'Explicar fotossíntese para uma criança de 10 anos',
+        scenario: 'Uma criança de 10 anos perguntou como as plantas conseguem "fazer comida" usando a luz do sol.',
+        objective: 'Crie um prompt que instrua a IA a explicar a fotossíntese de forma simples, usando uma analogia do dia a dia e evitando jargões difíceis.',
+        hint: 'Deixe explícito o público-alvo (10 anos), peça uma analogia simples, defina tom amigável e limite o tamanho ou formato da resposta.',
+        requiredKeywords: ['fotossíntese', '10 anos', 'criança', 'simples', 'analogia', 'exemplo', 'curto', 'parágrafos'],
+        examplePrompt: 'Aja como um professor de ciências amigável e explique o que é a fotossíntese para uma criança de 10 anos. Use uma analogia simples do cotidiano (como cozinhar uma receita usando luz solar, água e ar), evite termos técnicos complexos ou explique-os com facilidade, e escreva no máximo 3 parágrafos curtos e envolventes.',
+        exampleWhy: 'Define papel, público-alvo exato, analogia concreta, restrição de vocabulário e limite de extensão.'
+      },
+      {
+        id: 3,
+        category: 'Resumo Estruturado',
+        difficulty: 'Nível Inicial',
+        kind: 'summary',
+        title: 'Resumir um artigo longo em tópicos essenciais',
+        scenario: 'Você colou um texto longo sobre os impactos da inteligência artificial na educação e precisa extrair apenas os pontos centrais rapidamente.',
+        objective: 'Escreva um prompt que peça um resumo fiel ao texto fornecido, organizado em tópicos objetivos e sem inventar informações.',
+        hint: 'Indique que o resumo deve se basear apenas no texto colado, peça bullet points/tópicos e estipule quantidade máxima de itens ou palavras.',
+        requiredKeywords: ['resuma', 'resumo', 'tópicos', 'pontos principais', 'texto', 'baseado', 'apenas', 'curto'],
+        examplePrompt: 'Resuma o texto a seguir em até 5 tópicos diretos e objetivos, destacando apenas as ideias principais e conclusões apresentadas. Não adicione informações externas nem opiniões que não estejam no texto. Texto: [cole aqui o artigo].',
+        exampleWhy: 'Impede alucinações ("não adicione informações externas"), define formato em tópicos e estabelece um teto de 5 itens.'
+      },
+      {
+        id: 4,
+        category: 'E-mail Profissional',
+        difficulty: 'Nível Inicial',
+        kind: 'communication',
+        title: 'Solicitar prorrogação de prazo a um professor ou gestor',
+        scenario: 'Você teve um imprevisto técnico e precisa pedir mais 48 horas para entregar um trabalho importante.',
+        objective: 'Elabore um prompt para gerar um e-mail educado, claro, responsável e objetivo, incluindo espaços para preencher dados específicos.',
+        hint: 'Especifique o destinatário, o motivo breve, o novo prazo solicitado, o tom profissional/respeitoso e o formato de e-mail (com assunto e corpo).',
+        requiredKeywords: ['e-mail', 'prazo', '48 horas', 'respeitoso', 'educado', 'profissional', 'assunto', 'trabalho'],
+        examplePrompt: 'Escreva um e-mail educado e profissional solicitando 48 horas adicionais para a entrega de um trabalho. Inclua linha de assunto clara, assuma a responsabilidade pelo atraso sem desculpas longas, informe o motivo breve (problema técnico), proponha uma nova data/hora de envio e use marcadores entre colchetes como [Nome do Destinatário] e [Nome do Projeto] para eu preencher.',
+        exampleWhy: 'Entrega estrutura pronta de e-mail, equilibra cordialidade com objetividade e facilita o preenchimento de dados.'
+      },
+      {
+        id: 5,
+        category: 'Programação',
+        difficulty: 'Intermediário',
+        kind: 'code',
+        title: 'Criar função em Python para validar senha forte',
+        scenario: 'Você está desenvolvendo um sistema em Python e precisa de uma função que verifique se uma senha atende a regras mínimas de segurança.',
+        objective: 'Crie um prompt técnico especificando a linguagem, os critérios de validação, o retorno esperado, comentários no código e um exemplo de uso.',
+        hint: 'Em programação, liste as regras exatas (tamanho mínimo, letras maiúsculas/minúsculas, números, caractere especial) e peça código limpo e comentado.',
+        requiredKeywords: ['python', 'função', 'senha', 'maiúscula', 'número', 'caractere', 'comentários', 'exemplo', 'retorne'],
+        examplePrompt: 'Escreva uma função em Python chamada verificar_senha_forte(senha) que retorne uma tupla (bool, list) indicando se a senha é válida e quais critérios falharam. Regras: mínimo de 8 caracteres, pelo menos 1 letra maiúscula, 1 letra minúscula, 1 número e 1 caractere especial. Adicione comentários explicativos em português e mostre 3 exemplos de teste ao final.',
+        exampleWhy: 'Especifica linguagem, assinatura da função, tipo de retorno, regras exatas, comentários e exemplos executáveis.'
+      },
+      {
+        id: 6,
+        category: 'Tradução e Adaptação de Tom',
+        difficulty: 'Intermediário',
+        kind: 'translation',
+        title: 'Traduzir slogan mantendo o tom criativo em inglês',
+        scenario: 'Você criou um slogan em português para um aplicativo de estudos ("Estude menos, lembre mais") e quer adaptá-lo para o público jovem em inglês.',
+        objective: 'Escreva um prompt que peça tradução/adaptação cultural (não literal) em inglês, mantendo impacto e oferecendo variações.',
+        hint: 'Peça adaptação de sentido e tom em vez de tradução literal, defina o público e solicite algumas opções curtas.',
+        requiredKeywords: ['inglês', 'adapte', 'traduza', 'slogan', 'tom', 'jovens', 'opções', 'impacto', 'literal'],
+        examplePrompt: 'Adapte o slogan "Estude menos, lembre mais" para o inglês voltado a estudantes universitários. Priorize naturalidade, ritmo e impacto em vez de tradução literal palavra por palavra. Apresente 4 opções curtas (até 5 palavras cada) com tom moderno e motivador, explicando brevemente a nuance de cada uma.',
+        exampleWhy: 'Distingue adaptação criativa de tradução literal, define público e pede múltiplas alternativas concisas.'
+      },
+      {
+        id: 7,
+        category: 'Análise de Cenários / Dados',
+        difficulty: 'Intermediário',
+        kind: 'analysis',
+        title: 'Diagnosticar queda de engajamento em uma plataforma',
+        scenario: 'Um aplicativo de leitura notou queda de 25% no retorno diário de usuários após mudar a tela inicial e adicionar mais notificações.',
+        objective: 'Crie um prompt que peça uma análise estruturada das causas prováveis, hipóteses para testar e métricas para acompanhar.',
+        hint: 'Apresente o contexto numérico, peça hipóteses organizadas por prioridade e solicite próximos passos práticos ou métricas.',
+        requiredKeywords: ['queda', '25%', 'hipóteses', 'causas', 'métricas', 'teste', 'notificações', 'usuários'],
+        examplePrompt: 'Atue como analista de produto. Um aplicativo de leitura teve queda de 25% no retorno diário após reformular a tela inicial e aumentar o envio de notificações. Liste as 4 hipóteses mais prováveis para essa queda, indique como testar cada hipótese rapidamente e sugira 3 métricas essenciais para monitorar a recuperação. Organize a resposta em tabela ou seções curtas.',
+        exampleWhy: 'Fornece dados concretos do problema, atribui um papel analítico e exige hipóteses testáveis e métricas.'
+      },
+      {
+        id: 8,
+        category: 'Roteiro e Storytelling',
+        difficulty: 'Intermediário',
+        kind: 'creative',
+        title: 'Roteiro curto de vídeo educativo sobre economia doméstica',
+        scenario: 'Você vai gravar um vídeo curto de 60 segundos para redes sociais ensinando a montar um orçamento mensal simples.',
+        objective: 'Escreva um prompt que gere um roteiro com gancho inicial, desenvolvimento prático, chamada para ação e indicação visual/fala.',
+        hint: 'Defina duração (60s), estrutura do vídeo (gancho, desenvolvimento, encerramento) e peça separação entre fala e ação/visual.',
+        requiredKeywords: ['60 segundos', 'roteiro', 'gancho', 'orçamento', 'fala', 'visual', 'vídeo', 'ação'],
+        examplePrompt: 'Crie um roteiro para um vídeo curto de até 60 segundos sobre como montar um orçamento mensal simples para quem está começando a trabalhar. Divida a resposta em duas colunas ou blocos claros: [Cena/Visual] e [Fala do Apresentador]. Inclua um gancho forte nos primeiros 3 segundos, 3 passos práticos e uma chamada final para salvar o vídeo.',
+        exampleWhy: 'Define tempo, tema, estrutura narrativa com gancho inicial e separa elementos visuais da locução.'
+      },
+      {
+        id: 9,
+        category: 'Resolução de Problemas',
+        difficulty: 'Intermediário',
+        kind: 'problem_solving',
+        title: 'Planejar estudos para duas provas na mesma semana',
+        scenario: 'Um estudante tem prova de Matemática na quarta-feira e de História na sexta-feira, com 2 horas livres por dia de segunda a quinta.',
+        objective: 'Elabore um prompt com todas as restrições de tempo e datas para que a IA monte um cronograma realista e equilibrado.',
+        hint: 'Inclua todas as restrições (dias disponíveis, horas por dia, datas das provas) e peça revisão ativa em vez de apenas reler.',
+        requiredKeywords: ['matemática', 'história', 'quarta', 'sexta', '2 horas', 'cronograma', 'revisão', 'dias'],
+        examplePrompt: 'Monte um cronograma de estudos de segunda a quinta-feira, com 2 horas por dia, para um aluno que terá prova de Matemática na quarta e de História na sexta. Priorize cada matéria antes da respectiva prova, inclua blocos de resolução de exercícios e revisão ativa, e reserve tempo na quinta para consolidar os conteúdos de História. Apresente em formato de cronograma diário.',
+        exampleWhy: 'Reúne todas as restrições temporais, respeita a ordem das provas e pede técnicas ativas de estudo.'
+      },
+      {
+        id: 10,
+        category: 'Geração de Imagens',
+        difficulty: 'Intermediário',
+        kind: 'image',
+        title: 'Estação espacial botânica em órbita',
+        scenario: 'Você precisa de uma imagem conceitual de uma estufa futurista dentro de uma estação espacial orbitando um planeta azul.',
+        objective: 'Escreva um prompt descritivo com elementos espaciais + vegetação, estética futurista, iluminação e qualidade visual.',
+        hint: 'Contraste o ambiente metálico/espacial com o verde das plantas, especifique o ângulo de câmera e a atmosfera luminosa.',
+        requiredKeywords: ['estação espacial', 'plantas', 'estufa', 'planeta', 'órbita', 'iluminação', 'futurista', 'estilo'],
+        examplePrompt: 'Arte conceitual de ficção científica em alta resolução: interior amplo de uma estufa botânica dentro de uma estação espacial em órbita, com grandes janelas panorâmicas mostrando um planeta azul e o espaço estrelado ao fundo. Plantas tropicais e canteiros iluminados contrastam com estruturas metálicas brancas e suaves. Luz natural da estrela central criando sombras definidas, composição simétrica e detalhada.',
+        exampleWhy: 'Explora o contraste entre tecnologia espacial e natureza, define enquadramento panorâmico e especifica iluminação e estilo.'
+      },
+      {
+        id: 11,
+        category: 'Criação de Textos',
+        difficulty: 'Intermediário',
+        kind: 'creative',
+        title: 'Introduzir um artigo de opinião sobre cidades caminháveis',
+        scenario: 'Você está escrevendo um artigo de opinião sobre como cidades pensadas para pedestres e bicicletas melhoram a saúde e a convivência.',
+        objective: 'Crie um prompt que peça um parágrafo de abertura envolvente, com tese clara e sem clichês vazios.',
+        hint: 'Defina o tema central, o posicionamento/tese, o tom (persuasivo, reflexivo) e peça para evitar aberturas genéricas como "Desde os primórdios da humanidade".',
+        requiredKeywords: ['cidades', 'pedestres', 'bicicletas', 'opinião', 'introdução', 'tese', 'clichês', 'saúde'],
+        examplePrompt: 'Escreva o parágrafo de abertura de um artigo de opinião defendendo que cidades planejadas para pedestres, ciclistas e transporte público são mais saudáveis e humanas do que cidades centradas no automóvel. Use tom persuasivo e reflexivo, comece com uma cena urbana cotidiana e evite clichês como "Nos dias de hoje" ou "Desde os primórdios".',
+        exampleWhy: 'Define a tese, orienta a abordagem inicial e bloqueia expressões batidas.'
+      },
+      {
+        id: 12,
+        category: 'Programação',
+        difficulty: 'Intermediário',
+        kind: 'code',
+        title: 'Diagnosticar e corrigir um bug em JavaScript',
+        scenario: 'Uma função em JavaScript que deveria somar os preços de um carrinho de compras está retornando "0102030" em vez de 60.',
+        objective: 'Escreva um prompt que explique o comportamento atual vs. esperado, peça a causa raiz do bug e a versão corrigida do código.',
+        hint: 'Mostre o sintoma exato ("0102030" em vez de 60), peça explicação do porquê do erro (concatenação de strings) e código corrigido.',
+        requiredKeywords: ['javascript', 'bug', 'erro', 'string', 'número', 'corrigida', 'explicação', 'soma'],
+        examplePrompt: 'Em JavaScript, uma função que soma os valores de um carrinho está retornando a string "0102030" em vez do número 60. Explique de forma direta qual é a causa provável desse bug (ex.: valores tratados como string ou acumulador inicial incorreto), forneça o código corrigido usando conversão numérica segura e mostre como lidar com valores inválidos.',
+        exampleWhy: 'Descreve o sintoma concreto, pede diagnóstico da causa raiz, correção e tratamento de casos extremos.'
+      },
+      {
+        id: 13,
+        category: 'Comparação e Síntese',
+        difficulty: 'Intermediário',
+        kind: 'analysis',
+        title: 'Comparar metodologias de estudo para vestibulares',
+        scenario: 'Um aluno quer comparar "resumos longos e releitura" com "resolução de questões e flashcards (repetição espaçada)".',
+        objective: 'Crie um prompt que gere uma comparação justa e estruturada (ex.: tabela), apontando vantagens, limitações e quando usar cada método.',
+        hint: 'Peça formato comparativo (como tabela), critérios claros (retenção, tempo gasto, facilidade inicial) e recomendação prática.',
+        requiredKeywords: ['comparar', 'tabela', 'questões', 'flashcards', 'resumo', 'vantagens', 'limitações', 'estudo'],
+        examplePrompt: 'Compare os métodos de estudo "releitura e resumos extensos" versus "prática com questões e repetição espaçada (flashcards)" para vestibulares. Apresente uma tabela comparativa avaliando retenção a longo prazo, tempo de preparo e dificuldade inicial, seguida de uma recomendação prática de como combinar ambos na rotina.',
+        exampleWhy: 'Estabelece critérios de comparação, exige formato tabular organizado e conclui com aplicação prática.'
+      },
+      {
+        id: 14,
+        category: 'Adaptação de Tom',
+        difficulty: 'Avançado',
+        kind: 'communication',
+        title: 'Reescrever um aviso de atraso em três tons diferentes',
+        scenario: 'Uma entrega de encomenda atrasou por conta de chuvas fortes na região e o cliente precisa ser avisado.',
+        objective: 'Escreva um prompt que peça três versões da mesma mensagem — empática/acolhedora, objetiva/executiva e descontraída — mantendo os fatos intactos.',
+        hint: 'Especifique que os fatos não podem mudar, defina os 3 tons solicitados e peça que cada versão seja curta.',
+        requiredKeywords: ['atraso', 'tons', 'empático', 'objetivo', 'curto', 'três', 'versões', 'informações'],
+        examplePrompt: 'Reescreva o aviso de que uma encomenda atrasou devido a chuvas fortes na rota de entrega, com nova previsão em 24 horas. Gere 3 versões curtas (até 3 frases cada): 1) empática e atenciosa, 2) direta e objetiva, 3) leve e cordial. Mantenha exatamente os mesmos fatos e prazos em todas as versões.',
+        exampleWhy: 'Garante fidelidade factual entre versões, define múltiplos tons contrastantes e impõe limite de tamanho.'
+      },
+      {
+        id: 15,
+        category: 'Análise Crítica e Dados',
+        difficulty: 'Avançado',
+        kind: 'analysis',
+        title: 'Avaliar limitações de uma pesquisa com amostra enviesada',
+        scenario: 'Uma pesquisa sobre hábitos de leitura feita apenas em um grupo de fãs de ficção científica concluiu que "85% da população lê livros toda semana".',
+        objective: 'Crie um prompt que peça à IA para identificar o viés amostral, explicar por que a conclusão é falha e sugerir como corrigir o desenho da pesquisa.',
+        hint: 'Aponte o viés de seleção (apenas fãs de ficção científica), peça análise crítica e sugestões metodológicas.',
+        requiredKeywords: ['viés', 'amostra', 'pesquisa', 'conclusão', 'corrigir', 'representativa', 'leitura', 'limitações'],
+        examplePrompt: 'Analise criticamente a seguinte conclusão: uma enquete aplicada apenas a membros de um clube de leitura de ficção científica concluiu que 85% da população lê semanalmente. Explique o viés de seleção envolvido, mostre por que a generalização é inválida e proponha 3 ajustes metodológicos para tornar a pesquisa mais representativa.',
+        exampleWhy: 'Identifica o problema central (viés de seleção/generalização indevida) e exige caminhos concretos de correção metodológica.'
+      },
+      {
+        id: 16,
+        category: 'Programação',
+        difficulty: 'Avançado',
+        kind: 'code',
+        title: 'Refatorar código repetitivo aplicando boas práticas',
+        scenario: 'Você tem um código funcional, mas repetitivo, que calcula desconto para diferentes categorias de clientes e quer torná-lo mais limpo e fácil de manter.',
+        objective: 'Escreva um prompt que peça refatoração mantendo o mesmo comportamento, explicando as melhorias aplicadas (ex.: clareza, evitar duplicação, nomes significativos).',
+        hint: 'Deixe claro que o comportamento deve permanecer idêntico, peça explicação das melhorias e solicite código modular ou legível.',
+        requiredKeywords: ['refatore', 'código', 'duplicação', 'legibilidade', 'mesmo', 'comportamento', 'melhorias', 'função'],
+        examplePrompt: 'Refatore o código a seguir para eliminar duplicação de lógica e melhorar legibilidade e manutenção, preservando exatamente o mesmo comportamento e resultados. Explique em tópicos as principais melhorias feitas (como clareza de nomes, estrutura de regras e modularidade) e mostre o código final limpo. Código: [cole o código aqui].',
+        exampleWhy: 'Exige preservação do comportamento original, foca em boas práticas de refatoração e pede justificativa técnica.'
+      },
+      {
+        id: 17,
+        category: 'Resolução de Problemas',
+        difficulty: 'Avançado',
+        kind: 'problem_solving',
+        title: 'Estruturar tomada de decisão com prós, contras e critérios',
+        scenario: 'Uma equipe precisa escolher entre duas ferramentas para organizar projetos escolares/universitários: uma gratuita com limites de recursos ou uma paga com mais automações.',
+        objective: 'Crie um prompt que peça uma matriz de decisão com critérios ponderados, riscos e recomendação condicionada ao perfil da equipe.',
+        hint: 'Peça critérios objetivos (custo, colaboração, curva de aprendizado, recursos) e uma recomendação condicional ("se a prioridade for X, escolha A; se for Y, escolha B").',
+        requiredKeywords: ['critérios', 'prós', 'contras', 'decisão', 'orçamento', 'equipe', 'recomendação', 'comparar'],
+        examplePrompt: 'Ajude uma equipe estudantil a decidir entre uma ferramenta gratuita de gestão de projetos (com limite de quadros e automações) e uma versão paga (com automações avançadas e histórico ampliado). Avalie ambas segundo critérios de custo, facilidade de uso, colaboração e necessidade de automação, e finalize com uma recomendação condicional baseada no tamanho e orçamento da equipe.',
+        exampleWhy: 'Estrutura a decisão em critérios claros e evita resposta única engessada ao usar recomendação condicional.'
+      },
+      {
+        id: 18,
+        category: 'Criação de Textos',
+        difficulty: 'Avançado',
+        kind: 'creative',
+        title: 'Criar roteiro de entrevista para um especialista em energia limpa',
+        scenario: 'Você vai entrevistar uma engenheira especialista em energia solar e armazenamento de baterias para um podcast estudantil.',
+        objective: 'Escreva um prompt que gere perguntas progressivas (do conceito básico aos desafios reais) com intenção por trás de cada pergunta.',
+        hint: 'Defina o perfil da entrevistada, a ordem de dificuldade das perguntas e peça que cada pergunta indique o que busca revelar.',
+        requiredKeywords: ['perguntas', 'entrevista', 'energia solar', 'baterias', 'ordem', 'objetivo', 'podcast', 'desafios'],
+        examplePrompt: 'Elabore um roteiro com 6 perguntas para entrevistar uma engenheira especialista em energia solar e sistemas de armazenamento em baterias em um podcast estudantil. Organize as perguntas em ordem crescente de profundidade (do básico aos desafios práticos e futuros) e, para cada pergunta, indique em uma linha qual insight você espera extrair da resposta.',
+        exampleWhy: 'Estabelece quantidade, progressão lógica e propósito analítico para cada pergunta.'
+      },
+      {
+        id: 19,
+        category: 'Geração de Imagens',
+        difficulty: 'Avançado',
+        kind: 'image',
+        title: 'Biblioteca flutuante em estilo isométrico detalhado',
+        scenario: 'Você deseja uma imagem de uma biblioteca suspensa entre penhascos e cachoeiras, feita com estantes de madeira e lanternas quentes.',
+        objective: 'Escreva um prompt em visão isométrica ou detalhada com elementos arquitetônicos, natureza ao redor, iluminação e paleta de cores.',
+        hint: 'Especifique a perspectiva (ex.: isométrica), detalhes dos elementos (livros, escadas, lanternas), ambiente natural e atmosfera luminosa.',
+        requiredKeywords: ['biblioteca', 'isométrica', 'livros', 'cachoeira', 'penhasco', 'lanternas', 'iluminação', 'detalhes'],
+        examplePrompt: 'Ilustração digital isométrica rica em detalhes de uma biblioteca suspensa entre penhascos rochosos e uma cachoeira cristalina. Estantes de madeira escura repletas de livros coloridos, escadas em espiral, mesas de leitura e lanternas quentes acesas ao entardecer. Contraste entre tons quentes de madeira e luz âmbar com o azul-esverdeado da água e o verde da vegetação ao redor, traço limpo e alta definição.',
+        exampleWhy: 'Combina perspectiva clara, detalhes arquitetônicos e naturais e contraste cromático intencional.'
+      },
+      {
+        id: 20,
+        category: 'Síntese e Prompting Avançado',
+        difficulty: 'Avançado',
+        kind: 'analysis',
+        title: 'Transformar um pedido vago em um prompt estruturado completo',
+        scenario: 'Um colega escreveu apenas: "Me ajuda a fazer um trabalho sobre mudança climática". Seu desafio é escrever um prompt modelo que peça ajuda de forma estruturada e cobre lacunas.',
+        objective: 'Crie um prompt completo que inclua contexto, recorte específico, formato de entrega e peça à IA que faça perguntas de esclarecimento antes de começar se faltar algum dado.',
+        hint: 'Combine os pilares de engenharia de prompt (objetivo, recorte, estrutura, tom) e inclua uma instrução para a IA pedir esclarecimentos quando necessário.',
+        requiredKeywords: ['mudança climática', 'estrutura', 'perguntas', 'esclarecimento', 'formato', 'recorte', 'objetivo', 'tópicos'],
+        examplePrompt: 'Atue como tutor de pesquisa acadêmica e me ajude a estruturar um trabalho escolar sobre os impactos das mudanças climáticas na agricultura e na segurança alimentar. Antes de redigir o texto final, proponha um esboço em tópicos com introdução, causas, impactos regionais, medidas de adaptação e conclusão, e faça até 3 perguntas objetivas caso precise ajustar o nível de profundidade ou o recorte geográfico.',
+        exampleWhy: 'Demonstra domínio de engenharia de prompt ao definir recorte, estrutura prévia e um passo interativo de esclarecimento.'
+      }
+    ];
+
+    // Estado inicial da aplicação
+    const state = {
+      currentIndex: 0,
+      userPrompts: {},      // { [questionId]: string }
+      evaluations: {},    // { [questionId]: evaluationObject }
+      bestScores: {}        // { [questionId]: number }
+    };
+
+    // Utilitários de persistência segura
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          if (typeof parsed.currentIndex === 'number' && parsed.currentIndex >= 0 && parsed.currentIndex < QUESTIONS.length) {
+            state.currentIndex = parsed.currentIndex;
+          }
+          if (parsed.userPrompts && typeof parsed.userPrompts === 'object') {
+            state.userPrompts = parsed.userPrompts;
+          }
+          if (parsed.evaluations && typeof parsed.evaluations === 'object') {
+            state.evaluations = parsed.evaluations;
+          }
+          if (parsed.bestScores && typeof parsed.bestScores === 'object') {
+            state.bestScores = parsed.bestScores;
+          }
+        }
+      } catch (err) {
+        console.warn('Não foi possível carregar o estado salvo:', err);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          currentIndex: state.currentIndex,
+          userPrompts: state.userPrompts,
+          evaluations: state.evaluations,
+          bestScores: state.bestScores
+        }));
+      } catch (err) {
+        console.warn('Não foi possível salvar no localStorage:', err);
+      }
+    }
+
+    // Banner de mensagens amigável (sem alert/confirm)
+    let bannerTimeout = null;
+    function showBanner(message, type = 'info') {
+      const banner = document.getElementById('feedback-banner');
+      const textEl = document.getElementById('feedback-banner-text');
+      if (!banner || !textEl) return;
+
+      banner.classList.remove(
+        'hidden',
+        'bg-indigo-50', 'border-indigo-200', 'text-indigo-900',
+        'bg-emerald-50', 'border-emerald-200', 'text-emerald-900',
+        'bg-amber-50', 'border-amber-200', 'text-amber-900',
+        'bg-rose-50', 'border-rose-200', 'text-rose-900'
+      );
+
+      const styles = {
+        info: ['bg-indigo-50', 'border-indigo-200', 'text-indigo-900'],
+        success: ['bg-emerald-50', 'border-emerald-200', 'text-emerald-900'],
+        warning: ['bg-amber-50', 'border-amber-200', 'text-amber-900'],
+        error: ['bg-rose-50', 'border-rose-200', 'text-rose-900']
+      };
+
+      banner.classList.add(...(styles[type] || styles.info));
+      textEl.textContent = message;
+
+      if (bannerTimeout) clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 4500);
+    }
+
+    // Normaliza texto para análise sem acentos e em minúsculas
+    function normalizeText(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function countWords(str) {
+      const trimmed = (str || '').trim();
+      if (!trimmed) return 0;
+      return trimmed.split(/\s+/).length;
+    }
+
+    /**
+     * Avalia o prompt do aluno em 5 dimensões (2.0 pontos cada = 10.0 pontos):
+     * 1. Clareza e Intenção Explícita (0 - 2.0)
+     * 2. Contexto, Cenário ou Público (0 - 2.0)
+     * 3. Detalhes Específicos da Missão (0 - 2.0)
+     * 4. Formato de Saída, Estrutura ou Restrições (0 - 2.0)
+     * 5. Especificidade vs. Vagueza (0 - 2.0)
+     */
+    function evaluatePrompt(question, rawPrompt) {
+      const prompt = (rawPrompt || '').trim();
+      const norm = normalizeText(prompt);
+      const words = countWords(prompt);
+
+      const strengths = [];
+      const tips = [];
+
+      // 1. Clareza e ação explícita (0 - 2.0)
+      const actionVerbs = [
+        'crie', 'criar', 'escreva', 'escrever', 'gere', 'gerar', 'elabore', 'elaborar',
+        'explique', 'explicar', 'resuma', 'resumir', 'analise', 'analisar', 'compare', 'comparar',
+        'corrija', 'corrigir', 'refatore', 'refatorar', 'adapte', 'adaptar', 'traduza', 'traduzir',
+        'monte', 'montar', 'liste', 'listar', 'avalie', 'avaliar', 'estruture', 'estruturar',
+        'ilustre', 'desenhe', 'mostre', 'faca', 'faça'
+      ];
+      const hasAction = actionVerbs.some((v) => new RegExp(`\\b${v}\\b`, 'i').test(norm));
+      const hasLength = words >= 8;
+
+      let clarityScore = 0;
+      if (hasAction && hasLength) {
+        clarityScore = 2.0;
+        strengths.push('A intenção principal do pedido está clara e orientada a uma ação.');
+      } else if (hasAction || hasLength) {
+        clarityScore = 1.2;
+        tips.push('Comece com um verbo de ação direto (como "Explique", "Crie", "Resuma", "Compare") e desenvolva um pouco mais o pedido.');
+      } else {
+        clarityScore = 0.5;
+        tips.push('Seu prompt está muito curto ou genérico. Explique com clareza o que você quer que a IA faça.');
+      }
+
+      // 2. Contexto, cenário, papel ou público (0 - 2.0)
+      const contextMarkers = [
+        'contexto', 'cenario', 'cenário', 'para uma crianca', 'para uma criança', '10 anos',
+        'estudante', 'aluno', 'professor', 'equipe', 'cliente', 'publico', 'público',
+        'atuando como', 'aja como', 'como um', 'como uma', 'sobre', 'no texto', 'prova',
+        'quarta', 'sexta', 'encomenda', 'carrinho', 'vestibular', 'podcast', 'ferramenta'
+      ];
+      const contextHits = contextMarkers.filter((m) => norm.includes(normalizeText(m))).length;
+
+      let contextScore = 0;
+      if (contextHits >= 2 || (contextHits >= 1 && words >= 16)) {
+        contextScore = 2.0;
+        strengths.push('Bom enquadramento de contexto, situação ou público-alvo para orientar a resposta.');
+      } else if (contextHits === 1 || words >= 12) {
+        contextScore = 1.2;
+        tips.push('Inclua mais contexto ou público-alvo (quem vai ler, usar ou assistir ao resultado) para a resposta fazer mais sentido.');
+      } else {
+        contextScore = 0.4;
+        tips.push('Falta contexto da situação. Diga em qual cenário ou para qual público esse resultado será usado.');
+      }
+
+      // 3. Detalhes específicos da missão (0 - 2.0)
+      const qKeywords = question.requiredKeywords || [];
+      const matchedKeywords = qKeywords.filter((kw) => norm.includes(normalizeText(kw)));
+      const matchRatio = qKeywords.length > 0 ? matchedKeywords.length / qKeywords.length : 0;
+
+      let detailScore = 0;
+      if (matchRatio >= 0.45 || matchedKeywords.length >= 4) {
+        detailScore = 2.0;
+        strengths.push('Você incluiu elementos essenciais específicos desta missão.');
+      } else if (matchRatio >= 0.2 || matchedKeywords.length >= 2) {
+        detailScore = 1.2;
+        if (question.kind === 'image') {
+          tips.push('Adicione mais detalhes visuais: aparência/expressão dos elementos, ambiente ao redor, estilo artístico e iluminação.');
+        } else if (question.kind === 'code') {
+          tips.push('Especifique melhor os requisitos técnicos (regras, entradas/saídas esperadas, linguagem ou tratamento de erros).');
+        } else {
+          tips.push('Inclua mais elementos concretos ligados ao problema da questão para evitar uma resposta superficial.');
+        }
+      } else {
+        detailScore = 0.5;
+        if (question.kind === 'image') {
+          tips.push('Para imagens, detalhe os sujeitos, o cenário, o estilo visual (ex.: ilustração, aquarela, 3D) e a iluminação.');
+        } else {
+          tips.push('Faltam detalhes específicos exigidos pelo cenário da questão. Releia o objetivo e incorpore os pontos-chave.');
+        }
+      }
+
+      // 4. Formato de saída, tom ou restrições (0 - 2.0)
+      const formatMarkers = [
+        'topicos', 'tópicos', 'lista', 'tabela', 'paragrafos', 'parágrafos', 'curto', 'curta',
+        'ate ', 'até ', 'maximo', 'máximo', 'palavras', 'linhas', 'exemplos', 'analogia',
+        'tom', 'formal', 'educado', 'simples', 'sem ', 'nao ', 'não ', 'evite', 'passo a passo',
+        'iluminacao', 'iluminação', 'estilo', 'plano', 'enquadramento', 'resolucao', 'resolução'
+      ];
+      const formatHits = formatMarkers.filter((m) => norm.includes(normalizeText(m))).length;
+
+      let formatScore = 0;
+      if (formatHits >= 2) {
+        formatScore = 2.0;
+        strengths.push('Definiu formato de saída, estilo/tom ou restrições úteis para controlar o resultado.');
+      } else if (formatHits === 1) {
+        formatScore = 1.2;
+        tips.push('Reforce o formato ou as restrições (por exemplo: limite de tamanho, estrutura em tópicos ou o que evitar).');
+      } else {
+        formatScore = 0.4;
+        tips.push('Especifique o formato desejado (ex.: tópicos, tabela, e-mail, código comentado) e limites ou restrições.');
+      }
+
+      // 5. Especificidade vs. vagueza excessiva (0 - 2.0)
+      const vaguePhrases = [
+        'algo legal', 'qualquer coisa', 'bem feito', 'do seu jeito', 'faz ai', 'faz aí',
+        'crie uma imagem de', 'faca uma imagem de', 'faça uma imagem de', 'me ajuda com isso'
+      ];
+      const hasVaguePhrase = vaguePhrases.some((vp) => norm.includes(normalizeText(vp)));
+      const startsWithLazyImage = question.kind === 'image' && /^(crie|faca|faça)\s+(uma\s+)?imagem\s+de\b/i.test(norm) && words < 18;
+
+      let specificityScore = 1.6;
+      if (words >= 22 && !hasVaguePhrase && !startsWithLazyImage) {
+        specificityScore = 2.0;
+        strengths.push('Prompt bem elaborado e específico, reduzindo ambiguidades.');
+      } else if (hasVaguePhrase || startsWithLazyImage) {
+        specificityScore = 0.5;
+        tips.push('Evite expressões vagas como "algo legal" ou começar apenas com "crie uma imagem de..." sem detalhar cena, estilo e luz.');
+      } else if (words < 10) {
+        specificityScore = 0.8;
+        tips.push('Prompts muito curtos costumam deixar lacunas. Expanda com detalhes concretos e critérios claros.');
+      }
+
+      const rawTotal = clarityScore + contextScore + detailScore + formatScore + specificityScore;
+      const finalScore = Math.min(10, Math.max(0, Number(rawTotal.toFixed(1))));
+
+      let statusLabel = 'Precisa de Ajustes';
+      let statusClass = 'bg-rose-50 text-rose-700 border-rose-200';
+      let scoreColorClass = 'text-rose-600';
+      let headline = 'Bom ponto de partida — agora adicione mais precisão.';
+
+      if (finalScore >= 8.5) {
+        statusLabel = 'Excelente Prompt';
+        statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        scoreColorClass = 'text-emerald-600';
+        headline = 'Clareza, contexto e estrutura muito bem alinhados!';
+      } else if (finalScore >= 6.5) {
+        statusLabel = 'Bom Prompt';
+        statusClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        scoreColorClass = 'text-indigo-600';
+        headline = 'Sólido! Com pequenos ajustes você chega a 9 ou 10.';
+      } else if (finalScore >= 4.0) {
+        statusLabel = 'Em Evolução';
+        statusClass = 'bg-amber-50 text-amber-800 border-amber-200';
+        scoreColorClass = 'text-amber-600';
+        headline = 'Há uma ideia inicial, mas faltam detalhes e estrutura.';
+      }
+
+      if (strengths.length === 0) {
+        strengths.push('Você deu o primeiro passo enviando uma tentativa para análise.');
+      }
+      if (tips.length === 0) {
+        tips.push('Seu prompt já está completo! Se quiser ir além, teste variações de estilo, tom ou restrições para comparar os resultados.');
+      }
+
+      const revisedPrompt = buildRevisedPrompt(question, prompt, finalScore);
+
+      return {
+        score: finalScore,
+        statusLabel,
+        statusClass,
+        scoreColorClass,
+        headline,
+        criteria: [
+          { name: 'Clareza e Ação', score: clarityScore, max: 2.0 },
+          { name: 'Contexto e Público', score: contextScore, max: 2.0 },
+          { name: 'Detalhes da Missão', score: detailScore, max: 2.0 },
+          { name: 'Formato e Restrições', score: formatScore, max: 2.0 },
+          { name: 'Especificidade', score: specificityScore, max: 2.0 }
+        ],
+        strengths,
+        tips,
+        revisedPrompt
+      };
+    }
+
+    function buildRevisedPrompt(question, currentPrompt, currentScore) {
+      if (currentScore >= 8.5) {
+        return `${currentPrompt}\n\n(Dica extra: antes de gerar a resposta final, confirme se algum detalhe crítico ficou ambíguo.)`;
+      }
+      const base = currentPrompt.length > 0 ? currentPrompt : question.examplePrompt;
+      if (currentPrompt.length > 0 && currentPrompt.length < 260) {
+        return `${currentPrompt.replace(/[.!?]+$/, '')}. Inclua contexto claro, detalhes específicos do cenário (${question.category.toLowerCase()}), formato de saída organizado e restrições para evitar respostas genéricas.`;
+      }
+      return base;
+    }
+
+    // Renderização da interface
+    function renderHeaderStats() {
+      const completedIds = Object.keys(state.bestScores);
+      const completedCount = completedIds.length;
+      const totalPoints = completedIds.reduce((acc, id) => acc + Number(state.bestScores[id] || 0), 0);
+      const average = completedCount > 0 ? (totalPoints / completedCount).toFixed(1) : '—';
+      const pct = Math.round((completedCount / QUESTIONS.length) * 100);
+
+      document.getElementById('header-completed-count').textContent = `${completedCount} / ${QUESTIONS.length}`;
+      document.getElementById('header-average-score').textContent = completedCount > 0 ? `${average} / 10` : '— / 10';
+      document.getElementById('progress-label').textContent = `Progresso do laboratório: ${pct}% concluído`;
+      document.getElementById('progress-points-label').textContent = `${totalPoints.toFixed(1)} pts acumulados`;
+      document.getElementById('global-progress-bar').style.width = `${pct}%`;
+    }
+
+    function renderQuestionSelector() {
+      const container = document.getElementById('question-selector');
+      container.innerHTML = '';
+
+      QUESTIONS.forEach((q, idx) => {
+        const isCurrent = idx === state.currentIndex;
+        const score = state.bestScores[q.id];
+        const hasScore = typeof score === 'number';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = `Questão ${q.id}: ${q.title}${hasScore ? ` (Nota: ${score.toFixed(1)}/10)` : ''}`;
+        btn.className = [
+          'w-9 h-9 rounded-xl text-xs font-bold transition shrink-0 flex flex-col items-center justify-center border relative',
+          isCurrent
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm scale-105'
+            : hasScore
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+        ].join(' ');
+
+        btn.textContent = String(q.id);
+
+        if (hasScore && !isCurrent) {
+          const dot = document.createElement('span');
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mt-0.5';
+          btn.appendChild(dot);
+        }
+
+        btn.addEventListener('click', () => {
+          goToQuestion(idx);
+        });
+
+        container.appendChild(btn);
+      });
+    }
+
+    function updateTextareaCounters() {
+      const textarea = document.getElementById('prompt-textarea');
+      const val = textarea.value || '';
+      const words = countWords(val);
+      const chars = val.length;
+      document.getElementById('word-count').textContent = `${words} ${words === 1 ? 'palavra' : 'palavras'}`;
+      document.getElementById('char-count').textContent = `${chars} ${chars === 1 ? 'caractere' : 'caracteres'}`;
+    }
+
+    function renderEvaluationPanel(evaluation) {
+      const emptyState = document.getElementById('eval-empty-state');
+      const resultState = document.getElementById('eval-result-state');
+
+      if (!evaluation) {
+        emptyState.classList.remove('hidden');
+        resultState.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      resultState.classList.remove('hidden');
+
+      const scoreEl = document.getElementById('eval-score-value');
+      scoreEl.textContent = evaluation.score.toFixed(1);
+      scoreEl.className = `text-4xl font-extrabold tracking-tight ${evaluation.scoreColorClass}`;
+
+      const badgeEl = document.getElementById('eval-status-badge');
+      badgeEl.textContent = evaluation.statusLabel;
+      badgeEl.className = `inline-block px-3.5 py-1.5 rounded-full text-xs font-bold border ${evaluation.statusClass}`;
+
+      document.getElementById('eval-headline').textContent = evaluation.headline;
+
+      // Critérios
+      const criteriaList = document.getElementById('eval-criteria-list');
+      criteriaList.innerHTML = '';
+      evaluation.criteria.forEach((c) => {
+        const pct = Math.round((c.score / c.max) * 100);
+        const row = document.createElement('div');
+        row.className = 'bg-slate-50 rounded-xl p-2.5 border border-slate-200/70';
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-700 mb-1">
+            <span>${c.name}</span>
+            <span>${c.score.toFixed(1)} / ${c.max.toFixed(1)}</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div class="h-full bg-indigo-600 rounded-full transition-all duration-300" style="width: ${pct}%;"></div>
+          </div>
+        `;
+        criteriaList.appendChild(row);
+      });
+
+      // Pontos fortes
+      const strengthsList = document.getElementById('eval-strengths-list');
+      strengthsList.innerHTML = '';
+      evaluation.strengths.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        strengthsList.appendChild(li);
+      });
+
+      // Dicas de melhoria
+      const tipsList = document.getElementById('eval-tips-list');
+      tipsList.innerHTML = '';
+      evaluation.tips.forEach((tip) => {
+        const li = document.createElement('li');
+        li.textContent = tip;
+        tipsList.appendChild(li);
+      });
+
+      // Prompt revisado sugerido
+      document.getElementById('eval-revised-prompt').textContent = evaluation.revisedPrompt;
+    }
+
+    function renderCurrentQuestion() {
+      const q = QUESTIONS[state.currentIndex];
+      if (!q) return;
+
+      document.getElementById('q-number-badge').textContent = `Questão ${q.id} de ${QUESTIONS.length}`;
+      document.getElementById('q-category-badge').textContent = q.category;
+      document.getElementById('q-difficulty-badge').textContent = q.difficulty;
+      document.getElementById('q-title').textContent = q.title;
+      document.getElementById('q-scenario').textContent = q.scenario;
+      document.getElementById('q-objective').textContent = q.objective;
+
+      // Nota salva da questão
+      const savedPill = document.getElementById('q-saved-score-pill');
+      const best = state.bestScores[q.id];
+      if (typeof best === 'number') {
+        savedPill.textContent = `Melhor nota: ${best.toFixed(1)} / 10`;
+        savedPill.classList.remove('hidden');
+      } else {
+        savedPill.classList.add('hidden');
+      }
+
+      // Resetar painel de dica e exemplo ao trocar de questão
+      const hintBox = document.getElementById('q-hint-box');
+      hintBox.classList.add('hidden');
+      hintBox.textContent = q.hint;
+      document.getElementById('hint-toggle-icon').textContent = '+';
+      document.getElementById('hint-toggle-label').textContent = 'Mostrar dica rápida de engenharia de prompt';
+
+      document.getElementById('example-panel').classList.add('hidden');
+      document.getElementById('example-text').textContent = q.examplePrompt;
+      document.getElementById('example-why').textContent = `Por que funciona bem: ${q.exampleWhy}`;
+
+      // Restaurar resposta salva do aluno
+      const textarea = document.getElementById('prompt-textarea');
+      textarea.value = state.userPrompts[q.id] || '';
+      updateTextareaCounters();
+
+      // Restaurar avaliação salva da questão, se existir
+      renderEvaluationPanel(state.evaluations[q.id] || null);
+
+      // Botão anterior
+      document.getElementById('btn-prev').disabled = state.currentIndex === 0;
+
+      renderQuestionSelector();
+      renderHeaderStats();
+    }
+
+    function goToQuestion(newIndex) {
+      if (newIndex < 0 || newIndex >= QUESTIONS.length) return;
+      state.currentIndex = newIndex;
+      saveState();
+      renderCurrentQuestion();
+    }
+
+    function handleEvaluateCurrent() {
+      const q = QUESTIONS[state.currentIndex];
+      const textarea = document.getElementById('prompt-textarea');
+      const rawPrompt = textarea.value;
+
+      if (!rawPrompt || !rawPrompt.trim()) {
+        showBanner('Digite um prompt na caixa de resposta antes de enviar para avaliação.', 'warning');
+        textarea.focus();
+        return;
+      }
+
+      state.userPrompts[q.id] = rawPrompt;
+      const evaluation = evaluatePrompt(q, rawPrompt);
+      state.evaluations[q.id] = evaluation;
+
+      const prevBest = typeof state.bestScores[q.id] === 'number' ? state.bestScores[q.id] : 0;
+      if (evaluation.score >= prevBest) {
+        state.bestScores[q.id] = evaluation.score;
+      }
+
+      saveState();
+      renderCurrentQuestion();
+      renderEvaluationPanel(evaluation);
+      showBanner(
+        `Questão ${q.id} avaliada: você obteve ${evaluation.score.toFixed(1)} / 10 (${evaluation.statusLabel}).`,
+        evaluation.score >= 6.5 ? 'success' : 'info'
+      );
+    }
+
+    function renderSummaryModal() {
+      const completedIds = Object.keys(state.bestScores);
+      const completedCount = completedIds.length;
+      const totalPoints = completedIds.reduce((acc, id) => acc + Number(state.bestScores[id] || 0), 0);
+      const avg = completedCount > 0 ? (totalPoints / completedCount).toFixed(1) : '—';
+
+      document.getElementById('modal-stat-completed').textContent = `${completedCount} / ${QUESTIONS.length}`;
+      document.getElementById('modal-stat-average').textContent = completedCount > 0 ? `${avg} / 10` : '— / 10';
+      document.getElementById('modal-stat-total').textContent = `${totalPoints.toFixed(1)} / ${(QUESTIONS.length * 10).toFixed(0)}`;
+
+      const listEl = document.getElementById('summary-list');
+      listEl.innerHTML = '';
+
+      QUESTIONS.forEach((q, idx) => {
+        const score = state.bestScores[q.id];
+        const hasScore = typeof score === 'number';
+
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'w-full text-left rounded-2xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 p-3.5 transition flex items-center justify-between gap-4';
+
+        const left = document.createElement('div');
+        left.innerHTML = `
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-extrabold text-indigo-700">Q${q.id}</span>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${q.category}</span>
+            <span class="text-xs text-slate-400">${q.difficulty}</span>
+          </div>
+          <div class="text-sm font-bold text-slate-900 mt-1">${q.title}</div>
+        `;
+
+        const right = document.createElement('div');
+        right.className = 'shrink-0 text-right';
+        if (hasScore) {
+          right.innerHTML = `
+            <span class="inline-block px-3 py-1 rounded-xl text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              ${score.toFixed(1)} / 10
+            </span>
+          `;
+        } else {
+          right.innerHTML = `
+            <span class="inline-block px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-500">
+              Pendente
+            </span>
+          `;
+        }
+
+        row.appendChild(left);
+        row.appendChild(right);
+
+        row.addEventListener('click', () => {
+          document.getElementById('summary-modal').classList.add('hidden');
+          goToQuestion(idx);
+        });
+
+        listEl.appendChild(row);
+      });
+    }
+
+    // Configuração de eventos
+    function bindEvents() {
+      const textarea = document.getElementById('prompt-textarea');
+
+      textarea.addEventListener('input', () => {
+        updateTextareaCounters();
+        const q = QUESTIONS[state.currentIndex];
+        state.userPrompts[q.id] = textarea.value;
+        saveState();
+      });
+
+      document.getElementById('btn-evaluate').addEventListener('click', handleEvaluateCurrent);
+
+      document.getElementById('btn-clear').addEventListener('click', () => {
+        const q = QUESTIONS[state.currentIndex];
+        textarea.value = '';
+        state.userPrompts[q.id] = '';
+        saveState();
+        updateTextareaCounters();
+        showBanner('Caixa de texto limpa.', 'info');
+      });
+
+      document.getElementById('btn-toggle-hint').addEventListener('click', () => {
+        const box = document.getElementById('q-hint-box');
+        const icon = document.getElementById('hint-toggle-icon');
+        const label = document.getElementById('hint-toggle-label');
+        const willOpen = box.classList.contains('hidden');
+        box.classList.toggle('hidden', !willOpen);
+        icon.textContent = willOpen ? '−' : '+';
+        label.textContent = willOpen
+          ? 'Ocultar dica rápida de engenharia de prompt'
+          : 'Mostrar dica rápida de engenharia de prompt';
+      });
+
+      document.getElementById('btn-example').addEventListener('click', () => {
+        const panel = document.getElementById('example-panel');
+        panel.classList.toggle('hidden');
+      });
+
+      document.getElementById('btn-use-example').addEventListener('click', () => {
+        const q = QUESTIONS[state.currentIndex];
+        textarea.value = q.examplePrompt;
+        state.userPrompts[q.id] = q.examplePrompt;
+        saveState();
+        updateTextareaCounters();
+        showBanner('Exemplo de referência copiado para a caixa de texto. Você pode editá-lo ou avaliar agora!', 'success');
+      });
+
+      document.getElementById('btn-apply-improved').addEventListener('click', () => {
+        const q = QUESTIONS[state.currentIndex];
+        const ev = state.evaluations[q.id];
+        if (!ev || !ev.revisedPrompt) return;
+        textarea.value = ev.revisedPrompt;
+        state.userPrompts[q.id] = ev.revisedPrompt;
+        saveState();
+        updateTextareaCounters();
+        showBanner('Versão aprimorada carregada na caixa de texto.', 'info');
+      });
+
+      document.getElementById('btn-prev').addEventListener('click', () => {
+        goToQuestion(state.currentIndex - 1);
+      });
+
+      document.getElementById('btn-skip').addEventListener('click', () => {
+        const nextIdx = (state.currentIndex + 1) % QUESTIONS.length;
+        goToQuestion(nextIdx);
+      });
+
+      const modal = document.getElementById('summary-modal');
+      document.getElementById('btn-open-summary').addEventListener('click', () => {
+        renderSummaryModal();
+        modal.classList.remove('hidden');
+      });
+
+      document.getElementById('btn-close-summary').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.add('hidden');
+        }
+      });
+
+      document.getElementById('btn-reset-all').addEventListener('click', () => {
+        state.userPrompts = {};
+        state.evaluations = {};
+        state.bestScores = {};
+        state.currentIndex = 0;
+        saveState();
+        renderCurrentQuestion();
+        renderSummaryModal();
+        showBanner('Todo o progresso e as notas das 20 questões foram zerados.', 'info');
+      });
+
+      document.getElementById('feedback-banner-close').addEventListener('click', () => {
+        document.getElementById('feedback-banner').classList.add('hidden');
+      });
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      bindEvents();
+      renderCurrentQuestion();
+    });
+  </script>
+</body>
+</html>
